@@ -248,14 +248,19 @@ std::vector<Triangulo> crear_esfera(int segmentos, int anillos) {
 }
 
 std::vector<Triangulo> crear_nave() {
-    const Vector3 punta{0.0f, 0.0f, 0.48f};
-    const Vector3 cola{0.0f, 0.0f, -0.36f};
-    const Vector3 ala_izq{-0.34f, 0.0f, -0.22f};
-    const Vector3 ala_der{0.34f, 0.0f, -0.22f};
-    const Vector3 lomo{0.0f, 0.16f, -0.16f};
-    const Vector3 vientre{0.0f, -0.12f, -0.20f};
-    const Vector3 cima_izq{-0.18f, 0.04f, -0.24f};
-    const Vector3 cima_der{0.18f, 0.04f, -0.24f};
+    const Vector3 punta{0.0f, 0.0f, 0.55f};
+    const Vector3 cola_centro{0.0f, 0.0f, -0.42f};
+    const Vector3 cola_izq{-0.15f, 0.0f, -0.30f};
+    const Vector3 cola_der{0.15f, 0.0f, -0.30f};
+    const Vector3 ala_izq_ext{-0.40f, 0.0f, -0.12f};
+    const Vector3 ala_der_ext{0.40f, 0.0f, -0.12f};
+    const Vector3 ala_izq_int{-0.12f, 0.0f, 0.05f};
+    const Vector3 ala_der_int{0.12f, 0.0f, 0.05f};
+    const Vector3 lomo{0.0f, 0.14f, -0.05f};
+    const Vector3 vientre{0.0f, -0.10f, -0.18f};
+    const Vector3 cockpit{0.0f, 0.18f, 0.12f};
+    const Vector3 motor_izq{-0.08f, -0.03f, -0.42f};
+    const Vector3 motor_der{0.08f, -0.03f, -0.42f};
     std::vector<Triangulo> malla;
     auto agregar = [&malla](Vector3 a, Vector3 b, Vector3 c) {
         const Vector3 n = normalizar({(b.y-a.y)*(c.z-a.z)-(b.z-a.z)*(c.y-a.y),
@@ -263,17 +268,26 @@ std::vector<Triangulo> crear_nave() {
                                       (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x)});
         malla.push_back({{{{a,n},{b,n},{c,n}}}});
     };
-    agregar(punta, ala_izq, lomo);
-    agregar(punta, lomo, ala_der);
-    agregar(punta, ala_der, vientre);
-    agregar(punta, vientre, ala_izq);
-    agregar(ala_izq, cola, lomo);
-    agregar(cola, ala_der, lomo);
-    agregar(ala_izq, vientre, cola);
-    agregar(vientre, ala_der, cola);
-    agregar(lomo, cima_izq, cima_der);
-    agregar(lomo, cima_der, ala_der);
-    agregar(cima_izq, ala_izq, lomo);
+    agregar(punta, ala_izq_int, lomo);
+    agregar(punta, lomo, ala_der_int);
+    agregar(punta, ala_der_int, vientre);
+    agregar(punta, vientre, ala_izq_int);
+    agregar(ala_izq_int, ala_izq_ext, lomo);
+    agregar(lomo, ala_izq_ext, ala_izq_ext);
+    agregar(ala_der_int, lomo, ala_der_ext);
+    agregar(lomo, ala_der_ext, ala_der_ext);
+    agregar(ala_izq_ext, cola_izq, lomo);
+    agregar(cola_izq, ala_der_ext, lomo);
+    agregar(ala_izq_ext, vientre, cola_izq);
+    agregar(vientre, ala_der_ext, cola_der);
+    agregar(lomo, cockpit, ala_izq_int);
+    agregar(cockpit, ala_der_int, lomo);
+    agregar(cockpit, punta, ala_izq_int);
+    agregar(cockpit, ala_der_int, punta);
+    agregar(cola_izq, motor_izq, cola_centro);
+    agregar(motor_izq, cola_der, cola_centro);
+    agregar(cola_der, motor_der, cola_centro);
+    agregar(motor_der, cola_izq, cola_centro);
     return malla;
 }
 
@@ -388,7 +402,7 @@ int main() {
         anterior = ahora;
         const Uint8* teclas = SDL_GetKeyboardState(nullptr);
         const Vector3 frente = direccion_camara(camara);
-        const Vector3 derecha = normalizar({frente.z, 0.0f, -frente.x});
+        const Vector3 derecha = normalizar({-frente.z, 0.0f, frente.x});
         const float velocidad = 2.2f * delta;
         if (teclas[SDL_SCANCODE_W]) camara.posicion = camara.posicion + frente * velocidad;
         if (teclas[SDL_SCANCODE_S]) camara.posicion = camara.posicion - frente * velocidad;
@@ -396,6 +410,12 @@ int main() {
         if (teclas[SDL_SCANCODE_D]) camara.posicion = camara.posicion + derecha * velocidad;
         if (teclas[SDL_SCANCODE_SPACE]) camara.posicion.y += velocidad;
         if (teclas[SDL_SCANCODE_LSHIFT] || teclas[SDL_SCANCODE_RSHIFT]) camara.posicion.y -= velocidad;
+
+        const float k_giro = 1.8f * delta;
+        if (teclas[SDL_SCANCODE_Q]) camara.yaw -= k_giro;
+        if (teclas[SDL_SCANCODE_E]) camara.yaw += k_giro;
+        if (teclas[SDL_SCANCODE_R]) camara.pitch = std::clamp(camara.pitch + k_giro, -1.35f, 1.35f);
+        if (teclas[SDL_SCANCODE_F]) camara.pitch = std::clamp(camara.pitch - k_giro, -1.35f, 1.35f);
 
         dibujar_escena(framebuffer, esfera, nave, camara, tiempo);
         SDL_UpdateTexture(textura, nullptr, framebuffer.pixeles.data(), ancho * 4);
