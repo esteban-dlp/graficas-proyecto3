@@ -19,7 +19,7 @@ make
 ./space_travel
 ```
 
-La ventana muestra una esfera 3D iluminada sobre un fondo estrellado. Su shader procedural anima bandas de color con el tiempo. Presiona `Esc` o cierra la ventana para salir.
+La ventana muestra una esfera 3D iluminada y una nave facetada que puedes pilotear con teclado y cámara en tercera persona. Presiona `Esc` o cierra la ventana para salir.
 
 ## Renderer implementado
 
@@ -29,5 +29,8 @@ La ventana muestra una esfera 3D iluminada sobre un fondo estrellado. Su shader 
 - Interpolación de normales y prueba de profundidad por píxel
 - Shader de fragmentos procedural con iluminación y bandas animadas
 - Actualización del tiempo con el contador de alto rendimiento de SDL
+- Nave de malla poligonal propia, dibujada con el mismo z-buffer del renderer
+- Movimiento de la cámara y la nave mediante WASD, espacio y Shift
+- Giro de cámara con flechas o con ratón tras pulsar Tab; libera el ratón con la tecla de acento grave (`)
 
-Todavía no incluye nave, controles de vuelo, órbitas ni colisiones; se añadirán en las siguientes fases.
+Todavía no incluye órbitas, colisiones ni límites de proximidad al planeta.
