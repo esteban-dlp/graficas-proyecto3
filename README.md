@@ -2,7 +2,7 @@
 
 **Esteban de la Peña — 24171**
 
-Proyecto en C++17 con SDL2. Esta primera fase deja lista una ventana y un framebuffer de software para construir el renderer del proyecto.
+Proyecto en C++17 con SDL2. La base incluye un framebuffer propio y un renderer 3D por software que transforma y rasteriza una esfera con prueba de profundidad y un shader de fragmentos calculado en CPU.
 
 ## Requisitos
 
@@ -19,12 +19,15 @@ make
 ./space_travel
 ```
 
-La ventana muestra una escena 2D provisional dibujada en un framebuffer propio. Presiona `Esc` o cierra la ventana para salir.
+La ventana muestra una esfera 3D iluminada sobre un fondo estrellado. Su shader procedural anima bandas de color con el tiempo. Presiona `Esc` o cierra la ventana para salir.
 
-## Alcance de esta fase
+## Renderer implementado
 
-- Ventana SDL2 y ciclo de eventos
-- Framebuffer RGBA y dibujo de píxeles y líneas en CPU
-- Escena provisional para comprobar la presentación del framebuffer
+- Framebuffer RGBA y rasterización de triángulos por CPU
+- Malla de esfera generada con triángulos
+- Transformaciones de modelo, vista y proyección en matrices propias
+- Interpolación de normales y prueba de profundidad por píxel
+- Shader de fragmentos procedural con iluminación y bandas animadas
+- Actualización del tiempo con el contador de alto rendimiento de SDL
 
-Esta fase no implementa todavía geometría 3D, transformaciones, profundidad, shaders, controles de vuelo ni órbitas. Se incorporarán en fases posteriores.
+Todavía no incluye nave, controles de vuelo, órbitas ni colisiones; se añadirán en las siguientes fases.
