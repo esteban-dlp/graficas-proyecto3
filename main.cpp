@@ -56,6 +56,21 @@ Vector3 direccion_camara(const Camara& camara) {
     return normalizar({std::sin(camara.yaw) * cp, std::sin(camara.pitch), std::cos(camara.yaw) * cp});
 }
 
+// acerca un valor a su meta sin pasarse, con un paso maximo
+float acercar_escalar(float actual, float meta, float paso) {
+    if (actual < meta) return std::min(actual + paso, meta);
+    return std::max(actual - paso, meta);
+}
+
+Vector3 acercar_vector(Vector3 actual, Vector3 meta, float paso) {
+    const Vector3 diferencia = meta - actual;
+    const float distancia = std::sqrt(producto(diferencia, diferencia));
+    if (distancia <= paso) return meta;
+    return actual + diferencia * (paso / distancia);
+}
+
+enum class Material { planeta, nave, sol };
+
 struct Matriz4 {
     float m[4][4]{};
 
@@ -196,8 +211,18 @@ Color shader_nave(Vector3 normal) {
             static_cast<std::uint8_t>(b * 255), 255};
 }
 
+// el sol no recibe luz: su color sale de bandas que parpadean con el tiempo
+Color shader_sol(Vector3 normal, float tiempo) {
+    const float pulso = 0.5f + 0.5f * std::sin(normal.x * 9.0f + normal.y * 7.0f + tiempo * 1.7f);
+    const float centro = std::max(0.0f, normal.z);
+    const float mezcla = std::clamp(0.45f + 0.35f * pulso + 0.2f * centro, 0.0f, 1.0f);
+    const float verde = 0.35f + 0.57f * mezcla;
+    const float azul = 0.05f + 0.40f * mezcla;
+    return {255, static_cast<std::uint8_t>(verde * 255), static_cast<std::uint8_t>(azul * 255), 255};
+}
+
 void dibujar_triangulo(Framebuffer& buffer, PuntoPantalla a, PuntoPantalla b, PuntoPantalla c,
-                       float tiempo, bool es_nave) {
+                       float tiempo, Material material) {
     const float area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
     if (std::abs(area) < 0.0001f) return;
     const int min_x = std::max(0, static_cast<int>(std::floor(std::min({a.x, b.x, c.x}))));
@@ -217,7 +242,10 @@ void dibujar_triangulo(Framebuffer& buffer, PuntoPantalla a, PuntoPantalla b, Pu
             if (z < 0.0f || z > 1.0f || z >= buffer.profundidad[i]) continue;
             buffer.profundidad[i] = z;
             const Vector3 n = normalizar(a.normal * wa + b.normal * wb + c.normal * wc);
-            buffer.poner_pixel(x, y, es_nave ? shader_nave(n) : shader_fragmento(n, tiempo));
+            Color color = shader_fragmento(n, tiempo);
+            if (material == Material::nave) color = shader_nave(n);
+            if (material == Material::sol) color = shader_sol(n, tiempo);
+            buffer.poner_pixel(x, y, color);
         }
     }
 }
@@ -298,7 +326,7 @@ PuntoPantalla proyectar(Vector3 posicion, Vector3 normal, const Matriz4& mvp, in
 }
 
 void dibujar_malla(Framebuffer& buffer, const std::vector<Triangulo>& malla,
-                    const Matriz4& modelo, const Matriz4& vp, float tiempo, bool es_nave = false) {
+                    const Matriz4& modelo, const Matriz4& vp, float tiempo, Material material = Material::planeta) {
     const Matriz4 mvp = multiplicar(vp, modelo);
     for (const Triangulo& t : malla) {
         PuntoPantalla p[3];
@@ -307,7 +335,7 @@ void dibujar_malla(Framebuffer& buffer, const std::vector<Triangulo>& malla,
             const Vector3 normal = normalizar(transformar(modelo, t.vertices[i].normal));
             p[i] = proyectar(mundo, normal, vp, buffer.ancho, buffer.alto);
         }
-        dibujar_triangulo(buffer, p[0], p[1], p[2], tiempo, es_nave);
+        dibujar_triangulo(buffer, p[0], p[1], p[2], tiempo, material);
     }
     (void)mvp;
 }
@@ -326,7 +354,14 @@ void dibujar_escena(Framebuffer& buffer, const std::vector<Triangulo>& esfera,
     const Matriz4 v = vista(camara.posicion, objetivo, {0, 1, 0});
     const Matriz4 p = proyeccion(0.92f, static_cast<float>(buffer.ancho) / buffer.alto, 0.1f, 30.0f);
     const Matriz4 vp = multiplicar(p, v);
-    const Matriz4 modelo_planeta = multiplicar(trasladar(0, 0, 3.4f),
+    // el sol queda en el origen; el planeta da una vuelta cada ~42 s segun el tiempo
+    const Matriz4 modelo_sol = escalar(1.2f, 1.2f, 1.2f);
+    dibujar_malla(buffer, esfera, modelo_sol, vp, tiempo, Material::sol);
+
+    const float radio_orbita = 4.0f;
+    const float angulo_orbita = tiempo * 0.15f;
+    const Matriz4 modelo_planeta = multiplicar(trasladar(radio_orbita * std::cos(angulo_orbita), 0.0f,
+            radio_orbita * std::sin(angulo_orbita)),
         multiplicar(girar_y(tiempo * 0.25f), escalar(1.05f, 1.05f, 1.05f)));
     dibujar_malla(buffer, esfera, modelo_planeta, vp, tiempo);
 
@@ -334,7 +369,7 @@ void dibujar_escena(Framebuffer& buffer, const std::vector<Triangulo>& esfera,
     const Matriz4 modelo_nave = multiplicar(trasladar(camara.posicion.x + frente.x * 0.85f,
         camara.posicion.y + frente.y * 0.85f, camara.posicion.z + frente.z * 0.85f),
         multiplicar(orientacion, escalar(0.48f, 0.48f, 0.48f)));
-    dibujar_malla(buffer, nave, modelo_nave, vp, tiempo, true);
+    dibujar_malla(buffer, nave, modelo_nave, vp, tiempo, Material::nave);
 }
 
 int main() {
@@ -372,7 +407,12 @@ int main() {
         return 1;
     }
 
-    Camara camara{{0.0f, 0.0f, -3.4f}, 0.0f, 0.0f};
+    Camara camara{{0.0f, 0.8f, -6.0f}, 0.0f, -0.12f};
+    Vector3 velocidad_nave{0.0f, 0.0f, 0.0f};
+    float giro_yaw = 0.0f;
+    float giro_pitch = 0.0f;
+    constexpr float velocidad_maxima = 2.2f;
+    constexpr float velocidad_giro = 1.8f;
     bool salir = false;
     const std::uint64_t inicio = SDL_GetPerformanceCounter();
     const double frecuencia = static_cast<double>(SDL_GetPerformanceFrequency());
@@ -403,19 +443,26 @@ int main() {
         const Uint8* teclas = SDL_GetKeyboardState(nullptr);
         const Vector3 frente = direccion_camara(camara);
         const Vector3 derecha = normalizar({-frente.z, 0.0f, frente.x});
-        const float velocidad = 2.2f * delta;
-        if (teclas[SDL_SCANCODE_W]) camara.posicion = camara.posicion + frente * velocidad;
-        if (teclas[SDL_SCANCODE_S]) camara.posicion = camara.posicion - frente * velocidad;
-        if (teclas[SDL_SCANCODE_A]) camara.posicion = camara.posicion - derecha * velocidad;
-        if (teclas[SDL_SCANCODE_D]) camara.posicion = camara.posicion + derecha * velocidad;
-        if (teclas[SDL_SCANCODE_SPACE]) camara.posicion.y += velocidad;
-        if (teclas[SDL_SCANCODE_LSHIFT] || teclas[SDL_SCANCODE_RSHIFT]) camara.posicion.y -= velocidad;
+        // la velocidad se acerca a la deseada: acelera con empuje y frena sin teclas
+        const float empuje = (teclas[SDL_SCANCODE_W] ? 1.0f : 0.0f) - (teclas[SDL_SCANCODE_S] ? 1.0f : 0.0f);
+        const float lateral = (teclas[SDL_SCANCODE_D] ? 1.0f : 0.0f) - (teclas[SDL_SCANCODE_A] ? 1.0f : 0.0f);
+        const float vertical = (teclas[SDL_SCANCODE_SPACE] ? 1.0f : 0.0f)
+            - ((teclas[SDL_SCANCODE_LSHIFT] || teclas[SDL_SCANCODE_RSHIFT]) ? 1.0f : 0.0f);
+        const Vector3 deseada = frente * (empuje * velocidad_maxima) + derecha * (lateral * velocidad_maxima)
+            + Vector3{0.0f, vertical * velocidad_maxima, 0.0f};
+        const bool acelera = producto(deseada, deseada) > 0.0f;
+        velocidad_nave = acercar_vector(velocidad_nave, deseada, (acelera ? 4.0f : 3.0f) * delta);
+        camara.posicion = camara.posicion + velocidad_nave * delta;
 
-        const float k_giro = 1.8f * delta;
-        if (teclas[SDL_SCANCODE_Q]) camara.yaw -= k_giro;
-        if (teclas[SDL_SCANCODE_E]) camara.yaw += k_giro;
-        if (teclas[SDL_SCANCODE_R]) camara.pitch = std::clamp(camara.pitch + k_giro, -1.35f, 1.35f);
-        if (teclas[SDL_SCANCODE_F]) camara.pitch = std::clamp(camara.pitch - k_giro, -1.35f, 1.35f);
+        // el giro tambien arranca y para poco a poco
+        const float giro_deseado_yaw = ((teclas[SDL_SCANCODE_E] ? 1.0f : 0.0f) - (teclas[SDL_SCANCODE_Q] ? 1.0f : 0.0f))
+            * velocidad_giro;
+        const float giro_deseado_pitch = ((teclas[SDL_SCANCODE_R] ? 1.0f : 0.0f) - (teclas[SDL_SCANCODE_F] ? 1.0f : 0.0f))
+            * velocidad_giro;
+        giro_yaw = acercar_escalar(giro_yaw, giro_deseado_yaw, 6.0f * delta);
+        giro_pitch = acercar_escalar(giro_pitch, giro_deseado_pitch, 6.0f * delta);
+        camara.yaw += giro_yaw * delta;
+        camara.pitch = std::clamp(camara.pitch + giro_pitch * delta, -1.35f, 1.35f);
 
         dibujar_escena(framebuffer, esfera, nave, camara, tiempo);
         SDL_UpdateTexture(textura, nullptr, framebuffer.pixeles.data(), ancho * 4);
