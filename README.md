@@ -19,12 +19,13 @@ make
 ./space_travel
 ```
 
-La ventana muestra una esfera 3D iluminada y una nave facetada que puedes pilotear con teclado y cámara en tercera persona. Presiona `Esc` o cierra la ventana para salir.
+La ventana muestra un sol y un planeta que orbita y rota continuamente, además de una nave facetada que puedes pilotear con teclado y cámara en tercera persona. Presiona `Esc` o cierra la ventana para salir.
 
 ## Renderer implementado
 
 - Framebuffer RGBA y rasterización de triángulos por CPU
-- Malla de esfera generada con triángulos
+- Malla de esfera generada con triángulos, reutilizada para el sol y el planeta
+- Órbita del planeta alrededor del sol y rotación axial calculadas con tiempo transcurrido
 - Transformaciones de modelo, vista y proyección en matrices propias
 - Interpolación de normales y prueba de profundidad por píxel
 - Shader de fragmentos procedural con iluminación y bandas animadas
@@ -33,4 +34,4 @@ La ventana muestra una esfera 3D iluminada y una nave facetada que puedes pilote
 - Movimiento de la cámara y la nave mediante WASD, espacio y Shift
 - Giro de cámara con flechas o con ratón tras pulsar Tab; libera el ratón con la tecla de acento grave (`)
 
-Todavía no incluye órbitas, colisiones ni límites de proximidad al planeta.
+Todavía no incluye colisiones ni límites de proximidad al planeta.

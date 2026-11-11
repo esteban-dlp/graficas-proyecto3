@@ -359,7 +359,7 @@ void dibujar_escena(Framebuffer& buffer, const std::vector<Triangulo>& esfera,
     dibujar_malla(buffer, esfera, modelo_sol, vp, tiempo, Material::sol);
 
     const float radio_orbita = 4.0f;
-    const float angulo_orbita = tiempo * 0.15f;
+    const float angulo_orbita = 0.35f + tiempo * 0.15f;
     const Matriz4 modelo_planeta = multiplicar(trasladar(radio_orbita * std::cos(angulo_orbita), 0.0f,
             radio_orbita * std::sin(angulo_orbita)),
         multiplicar(girar_y(tiempo * 0.25f), escalar(1.05f, 1.05f, 1.05f)));
@@ -407,7 +407,7 @@ int main() {
         return 1;
     }
 
-    Camara camara{{0.0f, 0.8f, -6.0f}, 0.0f, -0.12f};
+    Camara camara{{0.0f, 0.8f, -6.0f}, 0.23f, -0.12f};
     Vector3 velocidad_nave{0.0f, 0.0f, 0.0f};
     float giro_yaw = 0.0f;
     float giro_pitch = 0.0f;
